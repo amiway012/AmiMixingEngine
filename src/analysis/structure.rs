@@ -16,6 +16,9 @@ pub fn novelty(stft: &mut Stft, mono: &[f32], spectral: &TrackSpectralProfile) -
     let nfft = stft.fft.size();
     let mut prev: Option<[f64; 17]> = None; // 12 chroma + 5 bands
     let mut nov = Vec::new();
+    let hop = stft.hop;
+    let half = nfft / 2;
+    let sr_t = sr;
     stft.each_frame(mono, |f, ps| {
         let mut v = [0.0f64; 17];
         let c = crate::analysis::chroma::chroma_from_spectrum(ps, sr, nfft);
@@ -23,7 +26,8 @@ pub fn novelty(stft: &mut Stft, mono: &[f32], spectral: &TrackSpectralProfile) -
             v[i] = c[i];
         }
         if !spectral.low.is_empty() {
-            let idx = spectral.idx_at(stft.frame_time(f));
+            let t = (f * hop + half) as f64 / sr_t;
+            let idx = spectral.idx_at(t);
             v[12] = spectral.low[idx];
             v[13] = spectral.low_mid[idx];
             v[14] = spectral.mid[idx];

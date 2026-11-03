@@ -139,11 +139,15 @@ pub fn analyze_harmony(stft: &mut Stft, mono: &[f32], _sr: f64, duration: f64, r
     if nf == 0 {
         return TrackHarmony::default();
     }
-    // one pass: store per-frame chroma + times
+    // one pass: store per-frame chroma + times (frame time computed inline so
+    // the closure does not re-borrow `stft` while it is mutably borrowed).
+    let half = nfft / 2;
+    let hop = stft.hop;
+    let sr_for_time = stft.sample_rate;
     let mut times = Vec::with_capacity(nf);
     let mut frames: Vec<[f64; 12]> = Vec::with_capacity(nf);
     stft.each_frame(mono, |f, ps| {
-        times.push(stft.frame_time(f));
+        times.push((f * hop + half) as f64 / sr_for_time);
         frames.push(chroma_from_spectrum(ps, sr, nfft));
     });
 

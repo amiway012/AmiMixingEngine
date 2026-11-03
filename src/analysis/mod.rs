@@ -62,16 +62,20 @@ impl Stft {
 
     /// Iterate all frames calling `cb(frame_idx, power_spectrum)`.
     pub fn each_frame<F: FnMut(usize, &[f64])>(&mut self, mono: &[f32], mut cb: F) {
-        let size = self.fft.size();
-        let nf = self.n_frames(mono.len());
+        // Split borrows: pull the mutable parts out of `self` so the callback
+        // can still read fields of `&Stft` (sample_rate, hop, fft size …).
+        let (fft, window, hop, sample_rate, ps) = (&self.fft, &self.window, self.hop, self.sample_rate, &mut self.ps);
+        let _ = sample_rate;
+        let size = fft.size();
+        let nf = if mono.len() < size { 0 } else { (mono.len() - size) / hop + 1 };
         let mut frame = vec![0.0f32; size];
         for f in 0..nf {
-            let start = f * self.hop;
+            let start = f * hop;
             for i in 0..size {
-                frame[i] = mono[start + i] * self.window[i];
+                frame[i] = mono[start + i] * window[i];
             }
-            self.fft.power_spectrum(&frame, &mut self.ps);
-            cb(f, &self.ps);
+            fft.power_spectrum(&frame, ps);
+            cb(f, ps);
         }
     }
 
@@ -130,7 +134,7 @@ impl AnalysisEngine {
         let mut quality = loudness::quality_flags(&loudness, &meta, duration);
 
         // ---- stage 5 (computed early; reused by other stages) --------------
-        let mut stft = Stft::new(sr, self.config.n_fft, self.config.hop);
+        let mut stft = Stft::new(sr, self.config.n_fft.max(256).next_power_of_two(), self.config.hop);
         let spectral = spectral::compute_profile(&mut stft, &mono, &loudness);
 
         // ---- stage 2: rhythm -------------------------------------------------

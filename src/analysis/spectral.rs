@@ -24,9 +24,12 @@ pub fn compute_profile(stft: &mut Stft, mono: &[f32], _loudness: &LoudnessProfil
     let mut centroid = Vec::new();
     let mut flux_low = Vec::new();
     let mut prev_low: Option<Vec<f64>> = None;
+    let hop_s = stft.hop;
+    let half_s = nfft / 2;
+    let sr_t = sr;
 
     stft.each_frame(mono, |f, ps| {
-        time.push(stft.frame_time(f));
+        time.push((f * hop_s + half_s) as f64 / sr_t);
         let total: f64 = ps.iter().sum::<f64>().max(1e-12);
         for (bi, (lo, hi)) in edges.iter().enumerate() {
             let e: f64 = ps[*lo..(*hi).min(bins)].iter().sum();
@@ -76,7 +79,8 @@ pub fn compute_profile(stft: &mut Stft, mono: &[f32], _loudness: &LoudnessProfil
     let bucket = ((0.5 / hop).max(1.0)) as usize;
     let mut counts = vec![0usize; (flux_low.len() / bucket).max(1)];
     for p in peaks {
-        counts[(p / bucket).min(counts.len() - 1)] += 1;
+        let i = (p / bucket).min(counts.len().saturating_sub(1));
+        counts[i] += 1;
     }
     let cmax = (*counts.iter().max().unwrap_or(&1)).max(1) as f64;
     let kick_density: Vec<f64> = (0..time.len())

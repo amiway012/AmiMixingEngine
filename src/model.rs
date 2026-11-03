@@ -460,11 +460,12 @@ pub fn parse_key_tag(tag: Option<&str>) -> (String, String, Scale) {
     } else {
         (upper.as_str(), Scale::Major)
     };
-    let root = root.trim().replace('♭', "");
+    let root = root.trim().replace('♭', "").replace('♯', "#");
+    let root: String = root.chars().filter(|c| c.is_alphabetic() || *c == '#').collect();
     let pc = NOTE_NAMES
         .iter()
-        .position(|n| n.eq_ignore_ascii_case(root))
-        .unwrap_or_else(|| flat_pc(root));
+        .position(|n| n.eq_ignore_ascii_case(&root))
+        .unwrap_or_else(|| flat_pc(&root));
     (pc_to_name(pc).into(), camelot_for(pc, scale), scale)
 }
 
