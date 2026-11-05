@@ -431,8 +431,9 @@ impl TrackAnalysis {
 
 /// Parse "Am", "A minor", "8A", "F#maj" into (name, camelot, scale).
 pub fn parse_key_tag(tag: Option<&str>) -> (String, String, Scale) {
-    let Some(t) = tag else {
-        return ("C".into(), "8B".into(), Scale::Major);
+    let t = match tag {
+        Some(t) => t,
+        None => return ("C".into(), "8B".into(), Scale::Major),
     };
     let t = t.trim();
     if let Some((n, l)) = parse_camelot(t) {

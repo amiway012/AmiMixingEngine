@@ -2,7 +2,7 @@
 name = "automix"
 version = "0.1.0"
 edition = "2021"
-rust-version = "1.75"
+rust-version = "1.63"
 description = "Fully automatic DJ transition engine: rhythm/harmony/structure analysis, transition planning with a cost function, EQ automation, time stretching and a real-time mix engine."
 license = "MIT OR Apache-2.0"
 
