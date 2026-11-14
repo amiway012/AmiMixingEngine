@@ -366,6 +366,7 @@ pub fn summarize_mos(votes: &[MosVote]) -> Option<SubjectiveSummary> {
 // ---------------------------------------------------------------------------
 
 /// One synthetic benchmark item: known BPM/key ground truth + role.
+#[derive(Clone)]
 pub struct CorpusItem {
     pub opts: SynthOptions,
     pub id: String,

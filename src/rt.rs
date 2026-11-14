@@ -16,6 +16,7 @@
 
 use crate::api::AutoMixControllerApi;
 use crate::edge::{EdgeCaseHandler, QueueDecision};
+use crate::api::MixEngineApi;
 use crate::mix::{MixEngine, StereoBuffer};
 use crate::model::*;
 use crate::plan::{calibrate_weights, TransitionOutcome, TransitionPlanner};
@@ -113,6 +114,8 @@ impl RealtimeController {
             mode: crate::api::ControllerMode::Auto,
             preference: UserMixPreference::Smooth,
             device: DeviceClass::Desktop,
+            paused: false,
+            scratch: Vec::new(),
             stats: RtStats::default(),
             last_tick: Instant::now(),
             tick_budget_s: 0.002,
@@ -181,7 +184,8 @@ impl RealtimeController {
     /// Sample-accurate: we convert the *remaining source time until the cue*
     /// into an exact output frame index against the render clock.
     pub fn arm(&mut self, plan: TransitionPlan, a: &TrackAnalysis, b: &TrackAnalysis) {
-        let plan = self.handler.adapt_plan_for_device(self.handler.adapt_plan(&plan, a, b), self.device);
+        let raw = self.handler.adapt_plan(&plan, a, b);
+        let plan = self.handler.adapt_plan_for_device(&raw, self.device);
         let cur = self.current_id();
         let (sa, sb) = match (self.decks.get(&cur), self.decks.get(&plan.target_track_id)) {
             (Some(x), Some(y)) => (x.buf.clone(), y.buf.clone()),
@@ -193,7 +197,7 @@ impl RealtimeController {
         self.engine.seek_target(plan.target_cue_time);
         // frames until the cue: source keeps playing solo until cue time
         let remaining = (a.duration - plan.source_cue_time).max(0.0);
-        let sr = self.engine.sample_rate_f64();
+        let sr = self.engine.sample_rate();
         self.arm_frame = Some(self.frames_rendered + (remaining * sr) as u64);
         self.plan = Some(plan);
     }
@@ -269,7 +273,7 @@ impl RealtimeController {
                     QueueDecision::FinishWithFallbackThenReplan => {
                         // swap the engine onto the stored fallback plan
                         if let Some(f) = self.plan.as_ref().and_then(|p| p.fallback_plan.as_ref()).cloned() {
-                            self.plan = Some(f);
+                            self.plan = Some(*f);
                             self.rotate_next_to(&new_next_id);
                         }
                         true
@@ -279,7 +283,7 @@ impl RealtimeController {
             RtEvent::FocusLost => {
                 if let Some(p) = &self.plan {
                     let fade = EdgeCaseHandler::on_audio_focus_loss(p);
-                    self.engine.start(&fade, 512, self.engine.sample_rate_f64());
+                    self.engine.start(&fade, 512, self.engine.sample_rate());
                 }
                 true
             }
@@ -331,7 +335,7 @@ impl RealtimeController {
         let n_frames = out.len() / 2;
         // 1) fill from the solo deck under transport
         let cur = self.current_id();
-        let sr = self.engine.sample_rate_f64();
+        let sr = self.engine.sample_rate();
         for k in 0..n_frames {
             let (l, r) = match self.decks.get(&cur) {
                 Some(d) => {
@@ -390,7 +394,7 @@ impl RealtimeController {
 
     /// Manual assist-mode override passthrough.
     pub fn set_automation(&mut self, param: MixParam, role: TrackRole, value: f64) {
-        self.engine.set_automation(param, role, value);
+        MixEngineApi::set_automation(&mut self.engine, param, role, value);
     }
 
     pub fn pause(&mut self) {
@@ -476,12 +480,9 @@ fn read_stereo_lerped(b: &StereoBuffer, pos: f64, gain: f32) -> (f32, f32) {
 // small extensions needed by rt without touching other modules' APIs
 // ---------------------------------------------------------------------------
 impl MixEngine {
-    pub fn sample_rate_f64(&self) -> f64 {
-        self.sample_rate_field()
-    }
     /// True while the armed transition still has samples left to render.
     pub fn is_running_after_block(&self) -> bool {
-        self.running && self.pos < self.total
+        self.is_running()
     }
 }
 

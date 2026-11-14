@@ -395,8 +395,13 @@ impl MixEngine {
         self.pos as f64 / self.sample_rate
     }
 
+    /// Sample rate the engine renders at.
+    pub fn sample_rate(&self) -> f64 {
+        self.sample_rate
+    }
+
     pub fn is_running(&self) -> bool {
-        self.running
+        self.running && self.pos < self.total
     }
 
     /// Seek deck positions (host-driven transport changes).

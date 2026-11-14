@@ -302,7 +302,7 @@ pub fn analyze_rhythm(stft: &mut Stft, mono: &[f32], sr: f64, duration: f64, spe
             (m / (env.iter().cloned().fold(0.0f64, f64::max)).max(1e-9)).clamp(0.0, 1.0)
         })
         .collect();
-    let (meter, down_frames, accent) = find_downbeats(&env, &beat_frames, &[3, 4, 6]);
+    let (meter, down_frames, _accent) = find_downbeats(&env, &beat_frames, &[3, 4, 6]);
     rhythm.meter = meter;
     rhythm.downbeat_times = down_frames.iter().map(|&f| stft.frame_time(f)).collect();
     // tempo stability: variance of local IBIs

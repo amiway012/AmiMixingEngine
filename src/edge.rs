@@ -133,7 +133,7 @@ impl EdgeCaseHandler {
         }
         if a.quality.source_clipping {
             v.push(dc(EdgeCase::SourceClipping, "-3 dB headroom trim applied on this deck"));
-            self.headroom_trim.retain(|(id, _)| id != a.id);
+            self.headroom_trim.retain(|(id, _)| *id != a.id);
             self.headroom_trim.push((a.id.clone(), 0.708)); // ≈ −3 dB
         }
         if a.quality.artifact_suspect || high_freq_truncated(a) {
@@ -203,10 +203,9 @@ impl EdgeCaseHandler {
         }
 
         // modulation inside the overlap: push target entry past the last modulation
-        if let Some(last_mod) = b.harmony.modulations.iter().map(|m| m.time).fold(0.0f64, |x, y| x.max(y)) {
-            if last_mod > 0.0 && p.target_cue_time < last_mod + 0.5 {
-                p.target_cue_time = nearest_safe_entry(b, last_mod + 0.5);
-            }
+        let last_mod = b.harmony.modulations.iter().map(|m| m.time).fold(0.0f64, |x, y| x.max(y));
+        if last_mod > 0.0 && p.target_cue_time < last_mod + 0.5 {
+            p.target_cue_time = nearest_safe_entry(b, last_mod + 0.5);
         }
 
         // codec artifacts / clipping: keep overlaps short, drop effect sends
@@ -354,7 +353,7 @@ fn nearest_safe_entry(a: &TrackAnalysis, t: f64) -> f64 {
     *a.structure
         .safe_entry_points
         .iter()
-        .min_by(|x, y| (x - t).abs().partial_cmp(&(y - t).abs()).unwrap())
+        .min_by(|x, y| (**x - t).abs().partial_cmp(&(**y - t).abs()).unwrap())
         .unwrap()
 }
 
@@ -365,7 +364,7 @@ fn nearest_safe_exit(a: &TrackAnalysis, t: f64) -> f64 {
     *a.structure
         .safe_exit_points
         .iter()
-        .min_by(|x, y| (x - t).abs().partial_cmp(&(y - t).abs()).unwrap())
+        .min_by(|x, y| (**x - t).abs().partial_cmp(&(**y - t).abs()).unwrap())
         .unwrap()
 }
 
@@ -390,7 +389,8 @@ pub fn guarded_plan(
     let mut cases = handler.detect_track(a);
     cases.extend(handler.detect_track(b));
     let raw = planner.plan_with_fallback(a, b, ctx, pref);
-    let adapted = handler.adapt_plan_for_device(handler.adapt_plan(&raw, a, b), ctx.device);
+    let raw_adapted = handler.adapt_plan(&raw, a, b);
+    let adapted = handler.adapt_plan_for_device(&raw_adapted, ctx.device);
     // regenerate automation consistent with the final type/duration
     let mut final_plan = adapted.clone();
     if final_plan.transition_type != raw.transition_type || (final_plan.duration - raw.duration).abs() > 1e-6 {
