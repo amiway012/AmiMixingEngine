@@ -56,13 +56,11 @@ struct Deck {
     buf: StereoBuffer,
     pos: f64,
     gain: f64,
-    /// true while the mix engine owns the output bus
-    solo_stopped: bool,
 }
 
 impl Deck {
     fn new(buf: StereoBuffer) -> Self {
-        Self { buf, pos: 0.0, gain: 1.0, solo_stopped: false }
+        Self { buf, pos: 0.0, gain: 1.0 }
     }
 }
 
@@ -95,8 +93,6 @@ pub struct RealtimeController {
     tick_budget_s: f64,
     finished: bool,
     paused: bool,
-    /// scratch block buffer so `process` stays allocation-free
-    scratch: Vec<f32>,
 }
 
 impl RealtimeController {
@@ -115,7 +111,6 @@ impl RealtimeController {
             preference: UserMixPreference::Smooth,
             device: DeviceClass::Desktop,
             paused: false,
-            scratch: Vec::new(),
             stats: RtStats::default(),
             last_tick: Instant::now(),
             tick_budget_s: 0.002,
@@ -338,16 +333,7 @@ impl RealtimeController {
         let sr = self.engine.sample_rate();
         for k in 0..n_frames {
             let (l, r) = match self.decks.get(&cur) {
-                Some(d) => {
-                    let i = d.pos.floor().max(0.0) as usize;
-                    let frac = (d.pos - i as f64) as f32;
-                    let (a0, a1) = read_stereo(&d.buf, i);
-                    let (b0, b1) = read_stereo(&d.buf, i + 1);
-                    d.gain as f32 * (1.0 - frac) + 0.0_f32.mul_add(0.0, 1.0) as f32 * 0.0_f32
-                        ; // placeholder replaced below
-                    let _ = (a0, a1, b0, b1);
-                    read_stereo_lerped(&d.buf, d.pos, d.gain as f32)
-                }
+                Some(d) => read_stereo_lerped(&d.buf, d.pos, d.gain as f32),
                 None => (0.0, 0.0),
             };
             out[2 * k] = l;

@@ -151,8 +151,10 @@ pub struct MixEngine {
 }
 
 // lane indexing helpers ------------------------------------------------------
-// order matters: keep in sync with `lane_index`
-const LANES: [(MixParam, TrackRole); 8] = [
+/// Automation lanes evaluated per sample in `process_block`, in fixed order.
+/// Kept public as documentation of the smoothing-chain layout; the render
+/// loop reads `sm` positionally, so any change here must match it.
+pub const LANES: [(MixParam, TrackRole); 10] = [
     (MixParam::Volume, TrackRole::Source),
     (MixParam::Volume, TrackRole::Target),
     (MixParam::Low, TrackRole::Source),
@@ -161,11 +163,9 @@ const LANES: [(MixParam, TrackRole); 8] = [
     (MixParam::Mid, TrackRole::Target),
     (MixParam::Filter, TrackRole::Source),
     (MixParam::Filter, TrackRole::Target),
+    (MixParam::Delay, TrackRole::Source),
+    (MixParam::Reverb, TrackRole::Source),
 ];
-
-fn lane_index(param: MixParam, role: TrackRole) -> Option<usize> {
-    LANES.iter().position(|(p, r)| *p == param && *r == role)
-}
 
 impl Default for MixEngine {
     fn default() -> Self {

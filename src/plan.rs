@@ -38,15 +38,21 @@ impl Default for TransitionPlanner {
     }
 }
 
-/// One enumerated candidate before typing.
+/// One enumerated candidate (exit-point × entry-point pair) before typing.
+/// Exposed publicly so hosts can inspect the ranked candidate list and so
+/// `edge`/`mix` can regenerate automation for an adapted plan.
 #[derive(Clone, Copy, Debug)]
-struct Candidate {
-    exit_t: f64,
-    entry_t: f64,
-    overlap_bars: f64,
-    cost: TransitionCost,
+pub struct Candidate {
+    /// time inside track A where the transition starts (source cue), s
+    pub exit_t: f64,
+    /// time inside track B where playback begins (target cue), s
+    pub entry_t: f64,
+    /// planned overlap length in bars of A
+    pub overlap_bars: f64,
+    /// full weighted cost breakdown
+    pub cost: TransitionCost,
     /// downbeat alignment error in ms after phase search
-    align_ms: f64,
+    pub align_ms: f64,
 }
 
 // ---------------------------------------------------------------------------

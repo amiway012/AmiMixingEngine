@@ -36,7 +36,7 @@ pub fn compute_profile(stft: &mut Stft, mono: &[f32], _loudness: &LoudnessProfil
             bands[bi].push(e / total);
         }
         // frame RMS from the time-domain slice
-        let start = f * stft.hop;
+        let start = f * hop_s;
         let end = (start + nfft).min(mono.len());
         let mut acc = 0.0f64;
         for &x in &mono[start..end] {

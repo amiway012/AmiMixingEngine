@@ -22,7 +22,6 @@ pub struct Stft {
     pub window: Vec<f32>,
     pub hop: usize,
     pub sample_rate: f64,
-    ps: Vec<f64>, // scratch power spectrum
 }
 
 impl Stft {
@@ -32,7 +31,6 @@ impl Stft {
             window: hann(n_fft),
             hop,
             sample_rate,
-            ps: vec![0.0; n_fft / 2 + 1],
         }
     }
 
